@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Scene with Three.js</title>
+    <title>rotation and revolution</title>
     <style>
         body { margin: 0; }
         canvas { display: block; }
     </style>
-    <script src="https://unpkg.com/three@0.137.4/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.137.4/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
-    
+    <!-- Three.jsの読み込み -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="OrbitControls.js"></script>
     <script>
         // シーン、カメラ、レンダラーの設定
         const scene = new THREE.Scene();
@@ -21,55 +21,117 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-    
+        // コントロールの追加
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
         // 照明の設定
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5, 5, 5).normalize();
+        const light = new THREE.PointLight(0xffffff, 2);
+        light.position.set(0, 0, 0); // 太陽の位置
         scene.add(light);
 
-        // ジオメトリとマテリアルを使って立方体を作成
-        const geometry = new THREE.BoxGeometry();
-        const texture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/crate.gif');
-        const material = new THREE.MeshStandardMaterial({ map: texture });
-        const cube = new THREE.Mesh(geometry, material);
-        scene.add(cube);
+        // 背景の星の追加
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 1000;
+        const starVertices = [];
 
-        // カメラの位置設定
-        camera.position.z = 5;
-
-        // パーティクルの設定
-        const particlesGeometry = new THREE.BufferGeometry();
-        const particlesCount = 500;
-        const posArray = new Float32Array(particlesCount * 3);
-
-        for(let i = 0; i < particlesCount * 3; i++){
-            posArray[i] = (Math.random() - 0.5) * 10;
+        for (let i = 0; i < starCount; i++) {
+            const x = (Math.random() - 0.5) * 2000;
+            const y = (Math.random() - 0.5) * 2000;
+            const z = (Math.random() - 0.5) * 2000;
+            starVertices.push(x, y, z);
         }
 
-        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
 
-        const particlesMaterial = new THREE.PointsMaterial({
-            size: 0.05,
-            color: 0xffffff
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        // テクスチャー読み込み
+        var textureLoader = new THREE.TextureLoader();  
+        var earthtexture = textureLoader.load('img/earth.png'); 
+        var mat1 = new THREE.MeshPhongMaterial({map: earthtexture}); 
+        mat1.map = earthtexture;
+
+        // 太陽の作成
+        const sunGeometry = new THREE.SphereGeometry(2, 32, 32);
+        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        sun.position.set(0,0,0);
+        scene.add(sun);
+
+        // パーティクルの設定
+        const particleCount = 500;
+        const particles = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+
+        for (var i = 0; i < particleCount; i++) {
+            const x = (Math.random() - 0.5) * 4; // 太陽の周りにパーティクルを配置
+            const y = (Math.random() - 0.5) * 4;
+            const z = (Math.random() - 0.5) * 4;
+            particlePositions[i * 3] = x;
+            particlePositions[i * 3 + 1] = y;
+            particlePositions[i * 3 + 2] = z;
+        }
+
+        particles.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+        const particleMaterial = new THREE.PointsMaterial({
+            color: 0xffaa00,
+            size: 0.1,
+            blending: THREE.AdditiveBlending,
+            transparent: true
         });
 
-        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
-        scene.add(particles);
+        var particleSystem = new THREE.Points(particles, particleMaterial);
+
+        // 太陽にパーティクルシステムを追加
+        sun.add(particleSystem);
+
+        // 地球の作成
+        const earthGeometry = new THREE.SphereGeometry(1, 32, 32);
+        const earth = new THREE.Mesh(earthGeometry, mat1);
+        earth.position.set(10,0,0);
+        scene.add(earth);
+
+        // 地球の周りを回転するオブジェクト
+        const earthOrbit = new THREE.Object3D();
+        earthOrbit.position.set(0, 0, 0);
+        earthOrbit.add(earth);
+        scene.add(earthOrbit);
+
+        // 月の作成
+        const moonGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+        const moonMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+        const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+
+        // 月の周りを回転するオブジェクト
+        const moonOrbit = new THREE.Object3D();
+        moonOrbit.position.set(3, 0, 0);
+        moonOrbit.add(moon);
+        earth.add(moonOrbit);
+
+        // カメラの位置設定
+        camera.position.z = 20;
 
         // アニメーションループ
         function animate() {
             requestAnimationFrame(animate);
 
-            // 立方体を回転させる
-            cube.rotation.x += 0.01;
-            cube.rotation.y += 0.01;
+            // 地球の周りを回る
+            earthOrbit.rotation.y += 0.001;
 
-            // パーティクルのアニメーション
-            particles.rotation.y += 0.001;
+            // 地球が太陽の周りをゆっくり回る
+            sun.rotation.y += 0.001; // ゆっくりと回転
+
+            // 月の周りを回る
+            moonOrbit.rotation.y += 0.05;
+
+            // 地球自身の自転
+            earth.rotation.y += 0.004;
 
             // レンダリング
-            //controls.update();
+            controls.update();
             renderer.render(scene, camera);
         }
 
